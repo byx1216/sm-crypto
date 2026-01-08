@@ -407,7 +407,7 @@ pub fn pk_from_sk(private_key: &str) -> String {
     format_hex!(p.x, p.y)
 }
 
-fn sign_raw(data: &[u8], private_key: &str) -> Vec<u8> {
+fn sign_raw_org(data: &[u8], private_key: &str) -> (BigUint, BigUint) {
     let e = BigUint::from_bytes_be(data);
     let d = BigUint::from_str_radix(private_key, 16).unwrap();
     let k = random_hex(PARA_LEN);
@@ -416,42 +416,34 @@ fn sign_raw(data: &[u8], private_key: &str) -> Vec<u8> {
     let p1 = kg(k, ECC_G);
     let r = (e + p1.x) % BigUint::from_str_radix(ECC_N, 16).unwrap();
     if r == BigUint::zero() || &r + &k1 == BigUint::from_str_radix(ECC_N, 16).unwrap() {
-        vec![]
+        (BigUint::zero(), BigUint::zero())
     } else {
         let d_1: BigUint = (&d + BigUint::one()).modpow(&(BigUint::from_str_radix(ECC_N, 16).unwrap() - BigUint::new(vec![2])), &BigUint::from_str_radix(ECC_N, 16).unwrap());
         let s: BigUint = (&d_1 * (&k1 + &r) - &r) % BigUint::from_str_radix(ECC_N, 16).unwrap();
         if s == BigUint::zero() {
-            vec![]
-    }   else {
-            yasna::construct_der(|writer| {
-                writer.write_sequence(|writer| {
-                    writer.next().write_biguint(&r);
-                    writer.next().write_biguint(&s);
-                });
-            })
+            (BigUint::zero(), BigUint::zero())
+        }   else {
+            (r, s)
         }
     }
 }
 
-fn verify_raw(data: &[u8], sign: &[u8], public_key: &str) -> bool {
-    let rs = yasna::parse_der(sign, |reader| {
-        reader.read_sequence(|reader| {
-            let r = reader.next().read_biguint()?;
-            let s = reader.next().read_biguint()?;
-            return Ok((r, s));
+fn sign_raw_der(data: &[u8], private_key: &str) -> Vec<u8> {
+    let (r, s) = sign_raw_org(data, private_key);
+    if r == BigUint::zero() || s == BigUint::zero() {
+        vec![]
+    } else {
+        yasna::construct_der(|writer| {
+            writer.write_sequence(|writer| {
+                writer.next().write_biguint(&r);
+                writer.next().write_biguint(&s);
+            });
         })
-    });
-    let r: BigUint;
-    let s: BigUint;
-    match rs {
-        Ok(v) => {
-            r = v.0;
-            s = v.1;
-        }
-        Err(_) => {
-            return false;
-        }
     }
+}
+
+fn verify_raw_org(data: &[u8], sign: (BigUint, BigUint), public_key: &str) -> bool {
+    let (r, s) = sign;
     let r1 = r.clone();
     let s1 = s.clone();
     let e = BigUint::from_bytes_be(data);
@@ -473,29 +465,101 @@ fn verify_raw(data: &[u8], sign: &[u8], public_key: &str) -> bool {
     }
 }
 
-fn sign(id: &[u8], data: &[u8], private_key: &str) -> Vec<u8> {
-    let public_key = pk_from_sk(private_key);
-    let m_bar = concvec(&hex::decode(zab(&public_key, id)).unwrap(), data);
-    let e = hex::decode(sm3_hash(&m_bar)).unwrap();
-    sign_raw(&e, private_key)
+fn verify_raw_der(data: &[u8], sign: &[u8], public_key: &str) -> bool {
+    let rs = yasna::parse_der(sign, |reader| {
+        reader.read_sequence(|reader| {
+            let r = reader.next().read_biguint()?;
+            let s = reader.next().read_biguint()?;
+            return Ok((r, s));
+        })
+    });
+    let r: BigUint;
+    let s: BigUint;
+    match rs {
+        Ok(v) => {
+            r = v.0;
+            s = v.1;
+        }
+        Err(_) => {
+            return false;
+        }
+    }
+    verify_raw_org(data, (r, s), public_key)
 }
 
-fn verify(id: &[u8], data: &[u8], sign: &[u8], public_key: &str) -> bool {
-    let m_bar = concvec(&hex::decode(zab(&public_key, id)).unwrap(), data);
-    let e = hex::decode(sm3_hash(&m_bar)).unwrap();
-    verify_raw(&e, sign, public_key)
+fn sign(id: &[u8], data: &[u8], private_key: &str, hash: bool) -> (BigUint, BigUint) {
+    if hash {
+        let public_key = pk_from_sk(private_key);
+        let m_bar = concvec(&hex::decode(zab(&public_key, id)).unwrap(), data);
+        let e = hex::decode(sm3_hash(&m_bar)).unwrap();
+        sign_raw_org(&e, private_key)
+    } else {
+        sign_raw_org(data, private_key)
+    }
+
 }
 
-fn sign_to_file(id: &[u8], data: &[u8], sign_file: &str, private_key: &str) {
+fn sign_der(id: &[u8], data: &[u8], private_key: &str, hash: bool) -> Vec<u8> {
+    if hash {
+        let public_key = pk_from_sk(private_key);
+        let m_bar = concvec(&hex::decode(zab(&public_key, id)).unwrap(), data);
+        let e = hex::decode(sm3_hash(&m_bar)).unwrap();
+        sign_raw_der(&e, private_key)
+    } else {
+        sign_raw_der(data, private_key)
+    }
+}
+
+fn verify(id: &[u8], data: &[u8], sign: (BigUint, BigUint), public_key: &str, hash: bool) -> bool {
+    if hash {
+        let m_bar = concvec(&hex::decode(zab(&public_key, id)).unwrap(), data);
+        let e = hex::decode(sm3_hash(&m_bar)).unwrap();
+        verify_raw_org(&e, sign, public_key)
+    } else {
+        verify_raw_org(data, sign, public_key)
+    }
+}
+
+fn verify_der(id: &[u8], data: &[u8], sign: &[u8], public_key: &str, hash: bool) -> bool {
+    if hash {
+        let m_bar = concvec(&hex::decode(zab(&public_key, id)).unwrap(), data);
+        let e = hex::decode(sm3_hash(&m_bar)).unwrap();
+        verify_raw_der(&e, sign, public_key)
+    } else {
+        verify_raw_der(data, sign, public_key)
+    }
+}
+
+fn right_pad_to_64_with_char(s: String) -> String {
+    format!("{:0>64}", s)
+}
+
+fn sign_to_file(id: &[u8], data: &[u8], sign_file: &str, private_key: &str, hash: bool, der: bool) {
     let sign_file = Path::new(sign_file);
-    let sign_data = sign(id, data, private_key);
-    fs::write(sign_file, &sign_data[..]).unwrap();
+    if der {
+        let sign_data = sign_der(id, data, private_key, hash);
+        fs::write(sign_file, &sign_data[..]).unwrap();
+    } else {
+        let sign_data = sign(id, data, private_key, hash);
+        let sign_str = right_pad_to_64_with_char(sign_data.0.to_str_radix(16)) + &right_pad_to_64_with_char(sign_data.1.to_str_radix(16));
+        fs::write(sign_file, &sign_str).unwrap();
+    }
 }
 
-fn verify_from_file(id: &[u8], data: &[u8], sign_file: &str, public_key: &str) -> bool {
+fn split_string_in_half(s: &String) -> (&str, &str) {
+    let mid = s.len() / 2;
+    s.split_at(mid)
+}
+
+fn verify_from_file(id: &[u8], data: &[u8], sign_file: &str, public_key: &str, hash: bool, der: bool) -> bool {
     let sign_file = Path::new(sign_file);
-    let sign_data = fs::read(sign_file).unwrap();
-    verify(id, data, &sign_data, public_key)
+    let sign_data = fs::read_to_string(sign_file).unwrap();
+    if der {
+        verify_der(id, data, &sign_data.as_bytes(), public_key, hash)
+    } else {
+        let (r, s) = split_string_in_half(&sign_data);
+        verify(id, data, (BigUint::from_str_radix(r, 16).unwrap(), BigUint::from_str_radix(s, 16).unwrap()), public_key, hash)
+    }
 }
 
 fn encrypt(data: &[u8], public_key: &str) -> Vec<u8> {
@@ -842,18 +906,16 @@ impl<'a> Sign<'a> {
         Sign {id: id, private_key: private_key}
     }
 
-    /// Sign with sm3.
-    pub fn sign(&self, data: &[u8]) -> Vec<u8> {
-        sign(self.id, data, self.private_key)
+    pub fn sign(&self, data: &[u8], hash: bool) -> (BigUint, BigUint) {
+        sign(&self.id, data, self.private_key, hash)
     }
 
-    /// Sign without sm3.
-    pub fn sign_raw(&self, data: &[u8]) -> Vec<u8> {
-        sign_raw(data, self.private_key)
+    pub fn sign_der(&self, data: &[u8], hash: bool) -> Vec<u8> {
+        sign_der(self.id, data, self.private_key, hash)
     }
 
-    pub fn sign_to_file(&self, data: &[u8], sign_file: &str) {
-        sign_to_file(self.id, data, sign_file, self.private_key)
+    pub fn sign_to_file(&self, data: &[u8], sign_file: &str, hash: bool, der: bool) {
+        sign_to_file(self.id, data, sign_file, self.private_key, hash, der)
     }
 }
 
@@ -880,18 +942,16 @@ impl<'a> Verify<'a> {
         Verify {id: id, public_key: Cow::Borrowed(public_key)}
     }
 
-    /// Verify with sm3.
-    pub fn verify(&self, data: &[u8], sign: &[u8]) -> bool {
-        verify(self.id, data, sign, &self.public_key)
+    pub fn verify(&self, data: &[u8], sign: (BigUint, BigUint), hash: bool) -> bool {
+        verify(self.id, data, sign, &self.public_key, hash)
     }
 
-    /// Verify without sm3.
-    pub fn verify_raw(&self, data: &[u8], sign: &[u8]) -> bool {
-        verify_raw(data, sign, &self.public_key)
+    pub fn verify_der(&self, data: &[u8], sign: &[u8], hash: bool) -> bool {
+        verify_der(self.id, data, sign, &self.public_key, hash)
     }
 
-    pub fn verify_from_file(&self, data: &[u8], sign_file: &str) -> bool {
-        verify_from_file(self.id, data, sign_file, &self.public_key)
+    pub fn verify_from_file(&self, data: &[u8], sign_file: &str, hash: bool, der: bool) -> bool {
+        verify_from_file(self.id, data, sign_file, &self.public_key, hash, der)
     }
 }
 
