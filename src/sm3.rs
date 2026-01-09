@@ -1,23 +1,23 @@
 use std::vec;
 
 fn sm3_ff_j(x: u32, y: u32, z: u32, j: u32) -> u32 {
-    let mut ret = 0;
     if j < 16 {
-        ret = x ^ y ^ z;
-    } else if 16 <= j && j < 64 {
-        ret = (x & y) | (x & z) | (y & z);
+        x ^ y ^ z
+    } else if j < 64 {
+        (x & y) | (x & z) | (y & z)
+    } else {
+        panic!("j must be less than 64 in sm3_ff_j");
     }
-    ret
 }
 
 fn sm3_gg_j(x: u32, y: u32, z: u32, j: u32) -> u32 {
-    let mut ret = 0;
     if j < 16 {
-        ret = x ^ y ^ z;
-    } else if 16 <= j && j < 64 {
-        ret = (x & y) | (!x & z)
+        x ^ y ^ z
+    } else if j < 64 {
+        (x & y) | (!x & z)
+    } else {
+        panic!("j must be less than 64 in sm3_gg_j");
     }
-    ret
 }
 
 fn sm3_p_0(x: u32) -> u32 {
@@ -28,8 +28,7 @@ fn sm3_p_1(x: u32) -> u32 {
     x ^ x.rotate_left(15) ^ x.rotate_left(23)
 }
 
-fn sm3_cf(v_i: &Vec<u32>, b_i: &Vec<u32>) -> Vec<u32> {
-    let t_j: Vec<u32> = vec![
+const T_J: [u32; 64] = [
     2043430169, 2043430169, 2043430169, 2043430169, 2043430169, 2043430169,
     2043430169, 2043430169, 2043430169, 2043430169, 2043430169, 2043430169,
     2043430169, 2043430169, 2043430169, 2043430169, 2055708042, 2055708042,
@@ -41,7 +40,9 @@ fn sm3_cf(v_i: &Vec<u32>, b_i: &Vec<u32>) -> Vec<u32> {
     2055708042, 2055708042, 2055708042, 2055708042, 2055708042, 2055708042,
     2055708042, 2055708042, 2055708042, 2055708042, 2055708042, 2055708042,
     2055708042, 2055708042, 2055708042, 2055708042
-    ];
+];
+
+fn sm3_cf(v_i: &Vec<u32>, b_i: &Vec<u32>) -> Vec<u32> {
     let mut w: Vec<u32> = Vec::with_capacity(68);
     for i in 0..16 {
         let mut weight = 0x1000000;
@@ -68,7 +69,7 @@ fn sm3_cf(v_i: &Vec<u32>, b_i: &Vec<u32>) -> Vec<u32> {
     let mut g = v_i[6];
     let mut h = v_i[7];
     for j in 0..64 {
-        let ss_1 = ((a.rotate_left(12).wrapping_add(e).wrapping_add(t_j[j].rotate_left(j as u32))) & 0xffffffff).rotate_left(7);
+        let ss_1 = ((a.rotate_left(12).wrapping_add(e).wrapping_add(T_J[j].rotate_left(j as u32))) & 0xffffffff).rotate_left(7);
         let ss_2 = ss_1 ^ a.rotate_left(12);
         let tt_1 = (sm3_ff_j(a, b, c, j as u32).wrapping_add(d).wrapping_add(ss_2).wrapping_add(w_1[j])) & 0xffffffff;
         let tt_2 = (sm3_gg_j(e, f, g, j as u32).wrapping_add(h).wrapping_add(ss_1).wrapping_add(w[j])) & 0xffffffff;
