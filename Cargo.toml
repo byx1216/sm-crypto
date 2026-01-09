@@ -1,6 +1,6 @@
 [package]
 name = "sm-crypto"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["byx1216 <byx1216@126.com>"]
 description = "A Rust Implementation of China's Standards of Encryption Algorithms(SM2/SM3/SM4)"
