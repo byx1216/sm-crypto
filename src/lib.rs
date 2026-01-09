@@ -25,9 +25,9 @@
 //! use smcrypto::sm2;
 //! let (sk, pk) = sm2::gen_keypair();
 //! let sign_ctx = sm2::Sign::new(&sk);
-//! let sign = sign_ctx.sign(b"abc");
+//! let sign = sign_ctx.sign(b"abc", true);
 //! let verify_ctx = sm2::Verify::new(&pk);
-//! let verify = verify_ctx.verify(b"abc", &sign);
+//! let verify = verify_ctx.verify(b"abc", &sign, true);
 //! assert_eq!(verify, true);
 //! ```
 //! 
