@@ -1,4 +1,4 @@
-# smcrypto
+# sm_crypto
 
 A rust implementation of China's standards of encryption algorithms(SM2/SM3/SM4).
 
