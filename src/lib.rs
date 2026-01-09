@@ -5,7 +5,7 @@
 //! ### SM3
 //! 
 //! ```
-//! use smcrypto::sm3;
+//! use sm_crypto::sm3;
 //! let hash = sm3::sm3_hash(b"abc");
 //! assert_eq!(hash, "66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0");
 //! ```
@@ -15,14 +15,14 @@
 //! Note that the public key is in hexadecimal format and does not contain the "04" prefix.
 //! 
 //! ```
-//! use smcrypto::sm2;
+//! use sm_crypto::sm2;
 //! let (sk, pk) = sm2::gen_keypair();
 //! ```
 //! 
 //! ### SM2 Sign/Verify
 //! 
 //! ```
-//! use smcrypto::sm2;
+//! use sm_crypto::sm2;
 //! let (sk, pk) = sm2::gen_keypair();
 //! let sign_ctx = sm2::Sign::new(&sk);
 //! let sign = sign_ctx.sign(b"abc", true);
@@ -34,7 +34,7 @@
 //! ### SM2 Encrypt/Decrypt
 //! 
 //! ```
-//! use smcrypto::sm2;
+//! use sm_crypto::sm2;
 //! let (sk, pk) = sm2::gen_keypair();
 //! let enc_ctx = sm2::Encrypt::new(&pk);
 //! let enc = enc_ctx.encrypt(b"abc");
@@ -46,7 +46,7 @@
 //! ### SM2 Key Exchange
 //! 
 //! ```
-//! use smcrypto::sm2;
+//! use sm_crypto::sm2;
 //! // Step 1
 //! // a side
 //! let ida = b"id_a@company.com";
@@ -71,7 +71,7 @@
 //! ### SM4 ECB Encrypt/Decrypt
 //! 
 //! ```
-//! use smcrypto::sm4;
+//! use sm_crypto::sm4;
 //! let key = b"1234567812345678";
 //! let sm4_ecb = sm4::CryptSM4ECB::new(key);
 //! let enc_ecb = sm4_ecb.encrypt_ecb(b"abc");
@@ -82,7 +82,7 @@
 //! ### SM4 CBC Encrypt/Decrypt
 //! 
 //! ```
-//! use smcrypto::sm4;
+//! use sm_crypto::sm4;
 //! let key = b"1234567812345678";
 //! let iv = b"0000000000000000";
 //! let sm4_cbc = sm4::CryptSM4CBC::new(key, iv);
