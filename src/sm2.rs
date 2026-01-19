@@ -3,7 +3,7 @@ use std::vec;
 use num_bigint::BigUint;
 use num_traits::*;
 use num_integer::*;
-use rand::seq::SliceRandom;
+use rand::seq::{IndexedRandom};
 use std::process::Command;
 use std::path::Path;
 use std::fs;
@@ -44,7 +44,7 @@ fn random_hex(x: usize) -> String {
     let c = vec!["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
     let mut s: String = "".to_string();
     for _ in 0..x {
-        s += *c.choose(&mut rand::thread_rng()).unwrap();
+        s += *c.choose(&mut rand::rng()).unwrap();
     }
     s
 }
