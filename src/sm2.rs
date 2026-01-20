@@ -1,13 +1,18 @@
 use crate::sm3::{sm3_hash, sm3_hash_raw};
 use std::vec;
+use std::sync::atomic::{AtomicU64, Ordering};
 use num_bigint::BigUint;
 use num_traits::*;
 use num_integer::*;
-use rand::seq::{IndexedRandom};
 use std::process::Command;
 use std::path::Path;
 use std::fs;
 use std::borrow::Cow;
+use rand::{RngCore, SeedableRng, TryRngCore};
+use chrono::prelude::*;
+
+
+static COUNTER: AtomicU64 = AtomicU64::new(0);
 
 static PARA_LEN: usize = 64;
 static ECC_N: &str = "FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFF7203DF6B21C6052B53BBF40939D54123";
@@ -41,12 +46,26 @@ fn submod(a: &BigUint, b: &BigUint, ecc_p: &BigUint) -> BigUint {
 }
 
 fn random_hex(x: usize) -> String {
-    let c = vec!["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
-    let mut s: String = "".to_string();
-    for _ in 0..x {
-        s += *c.choose(&mut rand::rng()).unwrap();
-    }
-    s
+    const HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
+
+    (0..x)
+        .map(|_| {
+            let idx: usize;
+            let result = rand::rand_core::OsRng.try_next_u32();
+            match result {
+                Ok(v) => idx = (v & 0x0F) as usize,
+                Err(_) => {
+                    let timestamp = Utc::now().timestamp() as u64;
+                    let counter = COUNTER.fetch_add(1, Ordering::SeqCst);
+                    // 组合时间戳和计数器作为种子
+                    let seed = timestamp ^ (counter << 32);
+                    let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                    idx = (rng.next_u32() & 0x0F) as usize;
+                },
+            }
+            HEX_CHARS[idx] as char
+        })
+        .collect()
 }
 
 fn appendzero(data: &[u8], size: usize) -> Vec<u8> {

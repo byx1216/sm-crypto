@@ -1,6 +1,6 @@
 [package]
 name = "sm-crypto"
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 authors = ["byx1216 <byx1216@126.com>"]
 description = "A Rust Implementation of China's Standards of Encryption Algorithms(SM2/SM3/SM4)"
@@ -21,6 +21,7 @@ rand = "0.9.2"
 pem = "1.0.2"
 base64 = "0.13.0"
 yasna = {version = "0.5.0", features = ["num-bigint"]}
+chrono = "0.4.43"
 
 [source.crates-io]
 registry = "https://index.crates.io/"
